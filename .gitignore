@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+media/
+staticfiles/
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDEs & OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
+
+# Docker
+docker-compose.override.yml
+
+# Environment variables — NEVER commit your real .env
+.env
+
+# --- AI & Editor Configurations (Do not commit) ---
+.agents/
+docs/plan.md
+docs/plano_*.md
