@@ -54,9 +54,7 @@ class TestTicketList:
     def test_list_own_tickets_success(self, auth_client_a, tickets_a, ticket_b):
         resp = auth_client_a.get(self.LIST_URL)
         assert resp.status_code == status.HTTP_200_OK
-        # Check pagination
         assert "results" in resp.data
-        # User A should only see their 2 tickets
         assert len(resp.data["results"]) == 2
         ticket_ids = [t["id"] for t in resp.data["results"]]
         assert ticket_b.id not in ticket_ids
@@ -76,5 +74,4 @@ class TestTicketList:
     def test_cannot_retrieve_others_ticket(self, auth_client_a, ticket_b):
         url = reverse("ticket-detail", args=[ticket_b.id])
         resp = auth_client_a.get(url)
-        # ticket-detail should return 404 because of get_queryset filtering
         assert resp.status_code == status.HTTP_404_NOT_FOUND

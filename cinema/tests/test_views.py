@@ -1,11 +1,3 @@
-"""
-Tests for the cinema views — Cases 1–4.
-
-Uses pytest-django with the built-in SQLite test database. Redis cache is
-bypassed in tests via Django's DummyCache override in the test runner
-(no extra config needed — cache_page gracefully degrades when caching backend
-is unavailable or returns misses).
-"""
 from __future__ import annotations
 
 import pytest
@@ -20,7 +12,6 @@ from cinema.models import Movie, Seat, Session
 User = get_user_model()
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
 @pytest.fixture
 def api_client() -> APIClient:
     return APIClient()
@@ -65,20 +56,17 @@ def session(db, movie: Movie) -> Session:
 
 @pytest.fixture
 def seats(db, session: Session) -> list[Seat]:
-    """Create a small 2-row, 3-column seat grid."""
     created = []
     for row in ("A", "B"):
         for num in (1, 2, 3):
             s = Seat.objects.create(session=session, row=row, number=num)
             created.append(s)
-    # Reserve one seat to make the map interesting
-    reserved = created[0]  # A1
+    reserved = created[0]
     reserved.status = Seat.Status.RESERVED
     reserved.save()
     return created
 
 
-# ── Caso 1: User Registration ────────────────────────────────────────────────
 @pytest.mark.django_db
 class TestUserRegistration:
     REGISTER_URL = reverse("user-register")
@@ -93,7 +81,6 @@ class TestUserRegistration:
         assert resp.status_code == status.HTTP_201_CREATED
         assert "id" in resp.data
         assert resp.data["username"] == "neo"
-        # Password must never appear in response
         assert "password" not in resp.data
 
     def test_password_is_hashed(self, api_client: APIClient) -> None:
@@ -103,7 +90,7 @@ class TestUserRegistration:
         )
         user = User.objects.get(username="trinity")
         assert user.check_password("test_password_456")
-        assert user.password != "test_password_456"  # not stored plaintext
+        assert user.password != "test_password_456"
 
     def test_short_password_rejected(self, api_client: APIClient) -> None:
         resp = api_client.post(
@@ -121,14 +108,12 @@ class TestUserRegistration:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
 
-# ── Caso 2: Movie Listing ────────────────────────────────────────────────────
 class TestMovieViewSet:
     LIST_URL = reverse("movie-list")
 
     def test_list_movies(self, api_client: APIClient, movie: Movie) -> None:
         resp = api_client.get(self.LIST_URL)
         assert resp.status_code == status.HTTP_200_OK
-        # Paginated response
         assert "results" in resp.data
         assert len(resp.data["results"]) == 1
         assert resp.data["results"][0]["title"] == "The Matrix"
@@ -147,12 +132,10 @@ class TestMovieViewSet:
         assert resp.data["title"] == "The Matrix"
 
     def test_no_write_operations(self, api_client: APIClient, movie: Movie) -> None:
-        """ReadOnly viewset must reject POST/PUT/PATCH/DELETE."""
         resp = api_client.post(self.LIST_URL, {"title": "Hack"})
         assert resp.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
 
-# ── Caso 3: Session Listing ──────────────────────────────────────────────────
 class TestSessionViewSet:
     LIST_URL = reverse("session-list")
 
@@ -174,7 +157,6 @@ class TestSessionViewSet:
         assert resp.status_code == status.HTTP_200_OK
 
 
-# ── Caso 4: Seat Map ─────────────────────────────────────────────────────────
 class TestSeatMap:
     def test_seat_map_returns_all_seats(
         self, api_client: APIClient, session: Session, seats: list[Seat]
@@ -182,7 +164,7 @@ class TestSeatMap:
         url = reverse("session-seats", args=[session.pk])
         resp = api_client.get(url)
         assert resp.status_code == status.HTTP_200_OK
-        assert len(resp.data) == 6  # 2 rows x 3 columns
+        assert len(resp.data) == 6
 
     def test_seat_map_includes_status(
         self, api_client: APIClient, session: Session, seats: list[Seat]
@@ -200,9 +182,7 @@ class TestSeatMap:
         resp = api_client.get(url)
         rows = [s["row"] for s in resp.data]
         numbers = [s["number"] for s in resp.data]
-        # A seats come before B seats
         assert rows == sorted(rows)
-        # Within same row, numbers are ascending
         a_numbers = [s["number"] for s in resp.data if s["row"] == "A"]
         assert a_numbers == sorted(a_numbers)
 

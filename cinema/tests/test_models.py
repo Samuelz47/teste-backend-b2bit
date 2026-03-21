@@ -1,13 +1,3 @@
-"""
-Unit tests for the cinema app models.
-
-Uses pytest-django with an in-memory SQLite-style DB automatically configured
-by pytest-django. Tests focus on:
-  - Model creation with valid data
-  - Seat.Status choices
-  - unique_together constraints on Seat and Ticket
-  - Serializer output (no locked_until leak, correct nesting)
-"""
 from __future__ import annotations
 
 import pytest
@@ -26,7 +16,6 @@ from cinema.serializers import (
 User = get_user_model()
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
 @pytest.fixture
 def movie(db) -> Movie:
     return Movie.objects.create(
@@ -74,7 +63,6 @@ def locked_ticket(db, user: User, session: Session, seat: Seat) -> Ticket:
     )
 
 
-# ── Model tests ───────────────────────────────────────────────────────────────
 class TestMovie:
     def test_create_movie(self, movie: Movie) -> None:
         assert movie.pk is not None
@@ -126,7 +114,6 @@ class TestTicket:
             Ticket.objects.create(user=user, session=session, seat=seat)
 
 
-# ── Serializer tests ──────────────────────────────────────────────────────────
 class TestMovieSerializer:
     def test_fields_present(self, movie: Movie) -> None:
         data = MovieSerializer(movie).data

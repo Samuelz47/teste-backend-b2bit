@@ -1,11 +1,3 @@
-"""
-Cinema app serializers.
-
-Exposure rules:
-  - MovieSerializer / SessionSerializer / SeatSerializer → public read endpoints.
-  - TicketSerializer → authenticated user endpoints; `locked_until` is intentionally
-    omitted (internal lock data) but `purchased_at` and `status` are exposed.
-"""
 from __future__ import annotations
 
 from django.contrib.auth import get_user_model
@@ -17,11 +9,6 @@ User = get_user_model()
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    """
-    Serializer for user registration (Caso 1).
-    Uses `create_user` to guarantee proper password hashing.
-    """
-
     password = serializers.CharField(write_only=True, min_length=8)
 
     class Meta:
@@ -40,8 +27,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
 
 class MovieSerializer(serializers.ModelSerializer):
-    """Read serializer for the Movie model."""
-
     class Meta:
         model = Movie
         fields = [
@@ -58,11 +43,6 @@ class MovieSerializer(serializers.ModelSerializer):
 
 
 class SessionSerializer(serializers.ModelSerializer):
-    """
-    Read serializer for the Session model.
-    Nests a lightweight representation of Movie to avoid extra client requests.
-    """
-
     movie = MovieSerializer(read_only=True)
     movie_id = serializers.PrimaryKeyRelatedField(
         queryset=Movie.objects.filter(is_active=True),
@@ -87,8 +67,6 @@ class SessionSerializer(serializers.ModelSerializer):
 
 
 class SeatSerializer(serializers.ModelSerializer):
-    """Serializer exposing seat position and availability status."""
-
     class Meta:
         model = Seat
         fields = [
@@ -102,12 +80,6 @@ class SeatSerializer(serializers.ModelSerializer):
 
 
 class TicketSerializer(serializers.ModelSerializer):
-    """
-    User-facing ticket serializer.
-    `locked_until` is intentionally excluded — it is an internal implementation
-    detail of the Redis seat-locking mechanism.
-    """
-
     seat = SeatSerializer(read_only=True)
     session = serializers.PrimaryKeyRelatedField(read_only=True)
 

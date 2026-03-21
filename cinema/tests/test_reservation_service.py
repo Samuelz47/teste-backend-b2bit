@@ -60,7 +60,6 @@ class TestReservationService:
         
         assert ticket.status == Ticket.Status.PURCHASED
         assert ticket.user == user
-        # Service updates DB, but we need to refresh the in-memory object
         seat.refresh_from_db()
         assert seat.status == Seat.Status.PURCHASED
         mock_con.delete.assert_called_once_with(f"seat_lock:{seat.id}")
@@ -75,7 +74,6 @@ class TestReservationService:
         with pytest.raises(DRFValidationError) as excinfo:
             checkout_seat(seat, user)
         
-        # Checking for "expired" instead of exact "Lock expired" to avoid case/phrase issues
         assert "expired" in str(excinfo.value).lower()
 
     @patch("cinema.services.reservation.get_redis_connection")

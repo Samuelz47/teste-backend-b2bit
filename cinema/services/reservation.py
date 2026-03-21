@@ -19,36 +19,25 @@ def get_seat_lock_key(seat_id: int) -> str:
 
 
 def lock_seat(seat_id: int, user_id: int) -> bool:
-    """
-    Attempts to acquire a distributed lock in Redis for a specific seat.
-    The lock is valid for SEAT_LOCK_TIMEOUT_SECONDS (default 10 minutes).
-    Returns True if lock was acquired, False otherwise.
-    """
     con = get_redis_connection("default")
     key = get_seat_lock_key(seat_id)
     timeout = getattr(settings, "SEAT_LOCK_TIMEOUT_SECONDS", 600)
-
-    # NX=True: Set if not exists
-    # EX=timeout: Set expiration in seconds
     success = con.set(key, user_id, nx=True, ex=timeout)
     return bool(success)
 
 
 def is_seat_locked(seat_id: int) -> bool:
-    """Checks if a seat is currently locked in Redis."""
     con = get_redis_connection("default")
     key = get_seat_lock_key(seat_id)
     return bool(con.exists(key))
 
 
 def get_locked_seat_ids(seat_ids: list[int]) -> set[int]:
-    """Given a list of seat IDs, returns those that are currently locked in Redis."""
     if not seat_ids:
         return set()
 
     con = get_redis_connection("default")
     keys = [get_seat_lock_key(sid) for sid in seat_ids]
-    # mget returns values for keys, None if not exists
     values = con.mget(keys)
 
     locked_ids = set()
@@ -59,30 +48,19 @@ def get_locked_seat_ids(seat_ids: list[int]) -> set[int]:
 
 
 def checkout_seat(seat: Seat, user) -> Ticket:
-    """
-    Finalizes the reservation by:
-    1. Validating the lock exists in Redis for this user.
-    2. Atomically updating the Seat status to PURCHASED.
-    3. Creating a Ticket record.
-    4. Removing the Redis lock.
-    """
     seat_id = seat.id
     con = get_redis_connection("default")
     key = get_seat_lock_key(seat_id)
 
-    # 1. Validate lock
     locked_user_id = con.get(key)
     if locked_user_id is None:
         raise ValidationError("Seat lock has expired or never existed.")
 
-    # Redis stores values as bytes, convert user.id to bytes for comparison
     if int(locked_user_id) != user.id:
         raise ValidationError("This seat is locked by another user.")
 
-    # 2 & 3. Atomic Database update
     try:
         with transaction.atomic():
-            # Refresh seat from DB with select_for_update for extra safety
             seat = Seat.objects.select_for_update().get(pk=seat_id)
 
             if seat.status != Seat.Status.AVAILABLE:
@@ -91,7 +69,6 @@ def checkout_seat(seat: Seat, user) -> Ticket:
             seat.status = Seat.Status.PURCHASED
             seat.save()
 
-            # Update session available seats count
             session = seat.session
             session.available_seats = max(0, session.available_seats - 1)
             session.save()
@@ -104,7 +81,6 @@ def checkout_seat(seat: Seat, user) -> Ticket:
                 purchased_at=timezone.now(),
             )
 
-            # 4. Success: Remove lock
             con.delete(key)
 
             return ticket

@@ -69,7 +69,6 @@ class TestReservationFlow:
         with patch("cinema.views.get_locked_seat_ids", return_value={seat.id}):
             resp = client.get(url)
             assert resp.status_code == status.HTTP_200_OK
-            # Find our seat in the response
             seat_data = next(s for s in resp.data if s["id"] == seat.id)
             assert seat_data["status"] == "reserved"
 
@@ -77,7 +76,6 @@ class TestReservationFlow:
         client, user = auth_client
         url = reverse("session-checkout-seat", args=[seat.session.id, seat.id])
         
-        # Create a mock ticket for the return value
         mock_ticket = Ticket(user=user, session=seat.session, seat=seat, status=Ticket.Status.PURCHASED)
         
         with patch("cinema.views.checkout_seat", return_value=mock_ticket) as mock_checkout:
