@@ -20,13 +20,13 @@ from __future__ import annotations
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework import generics, status, viewsets
+from rest_framework import generics, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from .models import Movie, Seat, Session
+from .models import Movie, Seat, Session, Ticket
 from .serializers import (
     MovieSerializer,
     SeatSerializer,
@@ -79,6 +79,16 @@ class MovieViewSet(viewsets.ReadOnlyModelViewSet):
     list=extend_schema(tags=["sessions"], summary="List all sessions"),
     retrieve=extend_schema(tags=["sessions"], summary="Retrieve a session by ID"),
     seats=extend_schema(tags=["sessions"], summary="Seat map for a session"),
+    reserve=extend_schema(
+        tags=["sessions"],
+        summary="Reserve a seat",
+        responses={201: {"type": "object", "properties": {"message": {"type": "string"}}}, 409: {"type": "object", "properties": {"error": {"type": "string"}}}},
+    ),
+    checkout=extend_schema(
+        tags=["sessions"],
+        summary="Checkout a reserved seat",
+        responses={201: TicketSerializer, 400: {"type": "object", "properties": {"error": {"type": "string"}}}},
+    ),
 )
 class SessionViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -177,3 +187,23 @@ class SessionViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({"error": str(e.detail[0])}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
             return Response({"error": "Database error during checkout."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# ── Caso 7: Meus Ingressos ──────────────────────────────────────────────────
+@extend_schema_view(
+    list=extend_schema(tags=["tickets"], summary="List authenticated user's tickets"),
+    retrieve=extend_schema(tags=["tickets"], summary="Retrieve a ticket by ID"),
+)
+class TicketViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    GET /api/tickets/       → paginated list of user's own tickets (Caso 7)
+    GET /api/tickets/<id>/  → detail view of a specific ticket
+    """
+
+    serializer_class = TicketSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Returns only tickets belonging to the authenticated user."""
+        return Ticket.objects.filter(user=self.request.user).select_related(
+            "session", "session__movie", "seat"
+        )
