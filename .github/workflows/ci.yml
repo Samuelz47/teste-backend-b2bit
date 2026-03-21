@@ -38,7 +38,6 @@ jobs:
 
       - name: Run Tests
         env:
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
           DATABASE_URL: sqlite:///db_test.sqlite3
           REDIS_URL: redis://localhost:6379/0
         run: poetry run pytest -v
